@@ -1,0 +1,6 @@
+numpy
+matplotlib
+pandas
+geospacepy
+cdflib
+-e git+git://github.com/lkilcommons/pycdflib.git#egg=pycdflib
