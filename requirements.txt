@@ -3,4 +3,5 @@ matplotlib
 pandas
 geospacepy
 cdflib
+fastparquet
 -e git+git://github.com/lkilcommons/pycdflib.git#egg=pycdflib
