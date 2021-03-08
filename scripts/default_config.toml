@@ -1,0 +1,20 @@
+# ---INTERNAL SETTINGS----
+soft_channels = [10,11,12,13,14,15,16,17]
+hard_channels = [0,1,2,3,4,5,6,7,8]
+all_channels = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+[dataframevar_to_cdfvar]
+    #keys will be dataframe column name, values are cdf variable name
+    #cdf variables must be 1D
+    glats='SC_GEOCENTRIC_LAT'
+    mlats='SC_AACGM_LAT'
+    mlts='SC_AACGM_LTIME'
+#---USER SETTINGS---
+[calculation]
+    uncertainty_tolerance = 100 # Percent uncertainty to tolerate (higher will be zero'd)
+[latbin]
+    delta_lat = 2 #Latitude bin width in degrees
+    max_lat = 80
+[io]
+    ssj_cdf_root_dir = '/home/ec2-user/SageMaker/efs/data/dmspssjdata/'
+    ssj_cdf_version = '1.1.4'
+    parquet_root_dir = '/home/ec2-user/SageMaker/efs/data/ssj_latbin/parquet'
