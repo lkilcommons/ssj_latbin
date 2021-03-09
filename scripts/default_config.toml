@@ -6,6 +6,7 @@ all_channels = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
     #keys will be dataframe column name, values are cdf variable name
     #cdf variables must be 1D
     glats='SC_GEOCENTRIC_LAT'
+    glons='SC_GEOCENTRIC_LON'
     mlats='SC_AACGM_LAT'
     mlts='SC_AACGM_LTIME'
 #---USER SETTINGS---

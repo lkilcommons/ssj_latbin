@@ -13,6 +13,8 @@ from functools import partial
 
 from pycdflib.cdf import ReadOnlyCDF
 from geospacepy.satplottools import simple_passes
+from geospacepy.sun import solar_zenith_angle
+from geospacepy.special_datetime import datetimearr2jd
 
 def _define_ssj_dataframe_contents(config):
     #Define variables to load from CDF into dataframe which are already 1D
@@ -68,6 +70,10 @@ def _read_ssj_cdf(ssjcdffn,config):
             cdfvar = cdfvar_or_tup
             data[dfvar]=cdf[cdfvar]
 
+    data['time']=dts
+    data['solar_zenith_angle']=np.degrees(solar_zenith_angle(datetimearr2jd(dts),
+                                                    data['glats'],
+                                                    data['glons']))
     ssjcdfdf = pd.DataFrame(data,index=dts)
     return ssjcdfdf
 
@@ -116,6 +122,11 @@ def _number_orbits(df,reference_date,latvar):
 
     return orbit_number
 
+def _orbit_start_time(df):
+    """Get a Series of the same length as the original data frame df.
+    which has the first value from the time index for each orbit"""
+    return df.groupby('orbit_number')['time'].transform('min')
+
 def get_orbit_numbered_ssj_dataframe(dmsp_number,dt,config):
     """Get a dataframe of the SSJ data for one day, but ensuring the full orbit's data
     from the first and last orbits of the day is present from the previous and next days' data"""
@@ -124,6 +135,7 @@ def get_orbit_numbered_ssj_dataframe(dmsp_number,dt,config):
     nextfn = ssjcdffn(dmsp_number,dt+datetime.timedelta(days=1),config)
     df = _read_current_previous_next_ssj_cdfs(prevfn,currfn,nextfn,config)
     df['orbit_number'] = _number_orbits(df,dt,'glats')
+    df['orbit_start_time'] = _orbit_start_time(df)
     df['dglats'] = derivative(df['glats'].values)
     
     on_day = df.index.date==dt.date()
@@ -145,6 +157,7 @@ def get_orbit_numbered_ssj_range_dataframe(dmsp_number,dt_start,dt_end,config):
         
     df = pd.concat(dfs)
     df['orbit_number'] = _number_orbits(df,dt_start,'glats')
+    df['orbit_start_time'] = _orbit_start_time(df)
     df['dglats'] = derivative(df['glats'].values)
     return df.dropna().sort_index()
 

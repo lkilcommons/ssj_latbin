@@ -36,7 +36,7 @@ def bin_by_latitude(orbit_numbered_ssj_dataframe,config,latvar='glats'):
     delta_lat=config['latbin']['delta_lat']
     max_lat=config['latbin']['max_lat']
     
-    df = orbit_numbered_ssj_dataframe
+    df = orbit_numbered_ssj_dataframe.copy()
     df['hemi']=pd.cut(df['glats'],[-91.,0.,91.],labels=['S','N'])
     df['asc_desc']=pd.cut(df['dglats'],[-np.inf,0,np.inf],labels=['desc','asc'])
 
@@ -67,7 +67,7 @@ def bin_by_latitude(orbit_numbered_ssj_dataframe,config,latvar='glats'):
     #Store the time as datetime64 for the averaging operation   
     df['time']=df.index.values.astype(np.int64)
     
-    binneddf = df.groupby(['orbit_number','latbin']).mean()
+    binneddf = df.groupby(['orbit_start_time','latbin']).mean()
     binneddf['time'] = pd.to_datetime(binneddf['time'])
     return binneddf
 
