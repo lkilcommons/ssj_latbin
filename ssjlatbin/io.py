@@ -89,7 +89,7 @@ def dataframe_to_latbinned_flux(binneddf,fluxvar):
     fluxes - np.array
         Array of electron or ion flux values
     """
-    t = [timestamp.to_pydatetime() for timestamp in binneddf.groupby('orbit_number')['time'].first()]
+    t = binneddf.index.get_level_values('orbit_start_time').unique().to_pydatetime()
     df2d = binneddf[fluxvar].unstack()
     lats = np.full((len(df2d.columns),),np.nan)
     lats_dawn_dusk_flag = np.full((len(df2d.columns),),np.nan)
