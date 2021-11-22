@@ -2,6 +2,8 @@
 
 A library which creates a machine-learning-ready Defense Meterology Satellite Program auroral particle precipitation (SSJ) dataset.
 
+A Jupyter notebook which documents this code and demonstrates its usage is available in [the notebooks folder](notebooks/Demo.ipynb)
+
 Data is reduced from raw data as follows:
 
 1. The 19 SSJ energy channels are grouped in 'bands', by default "hard" (particle kinetic energy >1keV) and "soft" (particle kinetic energy <= 1keV) 
