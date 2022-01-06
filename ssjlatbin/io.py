@@ -12,16 +12,21 @@ def read_config(tomlfn):
         tomldict = toml.loads(f.read())
     return tomldict
 
-def ssjcdffn(dmsp_number,dt,config):
-    """Find the full path to DMSP SSJ CDF file by looking
-    recursively in directory ssj_cdf_root_dir set in config file
+def ssjfn(dmsp_number,dt,config):
+    """Find the full path to DMSP SSJ CDF or netCDF files by looking
+    recursively in directory set in config file
     """
-    version = config['io']['ssj_cdf_version']
-    cdfdir = config['io']['ssj_cdf_root_dir']
-    fname = 'dmsp-f{:02d}_ssj_precipitating-electrons-ions_{}{:02d}{:02d}_v{}.cdf'.format(dmsp_number,dt.year,dt.month,dt.day,version)
-    fullpath = glob.glob(cdfdir+'/**/'+fname,recursive=True)
+    filetype = config['io']['cdf_or_nc']
+    if filetype not in ['cdf','nc']:
+        raise ValueError(f'Invalid filetype {filetype}, valid options cdf or nc')
+
+    version = config['io'][f'ssj_{filetype}_version']
+    fdir = config['io'][f'ssj_{filetype}_root_dir']
+
+    fname = 'dmsp-f{:02d}_ssj_precipitating-electrons-ions_{}{:02d}{:02d}_v{}.{}'.format(dmsp_number,dt.year,dt.month,dt.day,version,filetype)
+    fullpath = glob.glob(fdir+'/**/'+fname,recursive=True)
     if len(fullpath)==0:
-        raise IOError('No DMSP file {} found in {}'.format(fname,cdfdir))
+        raise IOError('No DMSP {} file {} found in {}'.format(filetype,fname,fdir))
     elif len(fullpath)>1:
         raise RuntimeError('Multiple matches {} this should not happen!'.format(fullpath))
     return fullpath[0]

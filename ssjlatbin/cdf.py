@@ -3,22 +3,23 @@
 # Mar 2021
 import numpy as np
 import pandas as pd
-import datetime
+import datetime,os
 
-from ssjlatbin.io import ssjcdffn
+from ssjlatbin.io import ssjfn
 from ssjlatbin.fluxcalculations import integrate_flux
 from ssjlatbin.tools import median_date,derivative
 
 from functools import partial
-
 from pycdflib.cdf import ReadOnlyCDF
+from ssjlatbin.netcdf import ReadOnlyConvertedNC
+
 from geospacepy.satplottools import simple_passes
 from geospacepy.sun import solar_zenith_angle
 from geospacepy.special_datetime import datetimearr2jd
 
 def _define_ssj_dataframe_contents(config):
-    #Define variables to load from CDF into dataframe which are already 1D
-    dataframevar_to_cdfvar = config['dataframevar_to_cdfvar']
+    #Define variables to load from CDF/netCDF into dataframe which are already 1D
+    dataframevar_to_filevar = config['dataframevar_to_filevar']
 
     soft_channels = config['soft_channels']
     hard_channels = config['hard_channels']
@@ -33,17 +34,19 @@ def _define_ssj_dataframe_contents(config):
                                                             channels=channels,
                                                             energy_or_number=fluxtype)
 
-    #Define variables which are not 1D in the CDF, along with a function that makes them 1D
+    #Define variables which are not 1D in the CDF/netCDF, along with a function that makes them 1D
     #so they can be added to the dataframe
     #(in this case the variables are [n_times x 19] and the function integrates along some or all of the 19 columns)
     for diff_flux_var,key in [('ELE_DIFF_ENERGY_FLUX','ele'),('ION_DIFF_ENERGY_FLUX','ion')]:
         for func_key,totalling_func in totaling_functions.items(): 
-            dataframevar_to_cdfvar[key+'_'+func_key] = (diff_flux_var,totalling_func) 
-    return dataframevar_to_cdfvar
+            dataframevar_to_filevar[key+'_'+func_key] = (diff_flux_var,totalling_func) 
+    return dataframevar_to_filevar
 
-def _read_ssj_cdf(ssjcdffn,config):
+def _read_ssj_file(ssjfn,config):
     """Read one spacecraft day of DMSP SSJ data into a dataframe"""
-    dataframevar_to_cdfvar = _define_ssj_dataframe_contents(config)
+    startdt = datetime.datetime.now()
+
+    dataframevar_to_filevar = _define_ssj_dataframe_contents(config)
     
     if 'uncertainty_tolerance' not in config['calculation']:
         uncertainty_tolerance = None
@@ -51,48 +54,59 @@ def _read_ssj_cdf(ssjcdffn,config):
     else:
         uncertainty_tolerance = config['calculation']['uncertainty_tolerance']
 
-    cdf = ReadOnlyCDF(ssjcdffn)
+    ext = os.path.splitext(ssjfn)[-1]
+    if ext == '.nc':
+        file = ReadOnlyConvertedNC(ssjfn)
+    elif ext == '.cdf':
+        file = ReadOnlyCDF(ssjfn)
+    else:
+        raise ValueError('Unexpected file extension {}'.format(ext))
+
     #read timestamps
-    dts=cdf['Epoch']
+    dts=file['Epoch']
     #read variables
     data = {}
-    for dfvar,cdfvar_or_tup in dataframevar_to_cdfvar.items():
-        if isinstance(cdfvar_or_tup,tuple):
-            cdfvar = cdfvar_or_tup[0]
-            to_1D_func = cdfvar_or_tup[1]
+    for dfvar,filevar_or_tup in dataframevar_to_filevar.items():
+        if isinstance(filevar_or_tup,tuple):
+            filevar = filevar_or_tup[0]
+            to_1D_func = filevar_or_tup[1]
             if uncertainty_tolerance is None: #No uncertainty filtering
-                data[dfvar]=to_1D_func(cdf[cdfvar])
+                data[dfvar]=to_1D_func(file[filevar])
             else:
-                data[dfvar]=to_1D_func(cdf[cdfvar],
-                                        diff_flux_rel_uncert=cdf[cdfvar+'_STD'],
+                data[dfvar]=to_1D_func(file[filevar],
+                                        diff_flux_rel_uncert=file[filevar+'_STD'],
                                         uncertainty_tolerance=uncertainty_tolerance)
         else:
-            cdfvar = cdfvar_or_tup
-            data[dfvar]=cdf[cdfvar]
+            filevar = filevar_or_tup
+            data[dfvar]=file[filevar]
 
     data['time']=dts
     data['solar_zenith_angle']=np.degrees(solar_zenith_angle(datetimearr2jd(dts),
                                                     data['glats'],
                                                     data['glons']))
-    ssjcdfdf = pd.DataFrame(data,index=dts)
-    return ssjcdfdf
+    ssjdf = pd.DataFrame(data,index=dts)
+    
+    enddt = datetime.datetime.now()
+    deltat = (enddt-startdt).total_seconds()
+    print('Read {} took {} seconds'.format(ssjfn,deltat))
+    return ssjdf
 
-def _read_current_previous_next_ssj_cdfs(prevcdffn,currcdffn,nextcdffn,config):
+def _read_current_previous_next_ssj_files(prevfn,currfn,nextfn,config):
     """Read three consecutive spacecraft-days of data"""
 
-    prevdf = _read_ssj_cdf(prevcdffn,config)
-    currdf = _read_ssj_cdf(currcdffn,config)
-    nextdf = _read_ssj_cdf(nextcdffn,config)
+    prevdf = _read_ssj_file(prevfn,config)
+    currdf = _read_ssj_file(currfn,config)
+    nextdf = _read_ssj_file(nextfn,config)
         
     if median_date(prevdf) != median_date(currdf)-datetime.timedelta(days=1):
-        raise ValueError('Date of {} != date of {} - 1 day'.format(prevcdffn,
-                                                                   currcdffn))
+        raise ValueError('Date of {} != date of {} - 1 day'.format(prevfn,
+                                                                   currfn))
     if median_date(nextdf) != median_date(currdf)+datetime.timedelta(days=1):
-        raise ValueError('Date of {} != date of {} + 1 day'.format(nextcdffn,
-                                                                   currcdffn))
+        raise ValueError('Date of {} != date of {} + 1 day'.format(nextfn,
+                                                                   currfn))
 
-    ssjcdfdf = pd.concat([prevdf,currdf,nextdf])
-    return ssjcdfdf
+    ssjdf = pd.concat([prevdf,currdf,nextdf])
+    return ssjdf
 
 
 def _number_orbits(df,reference_date,latvar):
@@ -130,10 +144,10 @@ def _orbit_start_time(df):
 def get_orbit_numbered_ssj_dataframe(dmsp_number,dt,config):
     """Get a dataframe of the SSJ data for one day, but ensuring the full orbit's data
     from the first and last orbits of the day is present from the previous and next days' data"""
-    prevfn = ssjcdffn(dmsp_number,dt-datetime.timedelta(days=1),config)
-    currfn = ssjcdffn(dmsp_number,dt,config)
-    nextfn = ssjcdffn(dmsp_number,dt+datetime.timedelta(days=1),config)
-    df = _read_current_previous_next_ssj_cdfs(prevfn,currfn,nextfn,config)
+    prevfn = ssjfn(dmsp_number,dt-datetime.timedelta(days=1),config)
+    currfn = ssjfn(dmsp_number,dt,config)
+    nextfn = ssjfn(dmsp_number,dt+datetime.timedelta(days=1),config)
+    df = _read_current_previous_next_ssj_files(prevfn,currfn,nextfn,config)
     df['orbit_number'] = _number_orbits(df,dt,'glats')
     df['orbit_start_time'] = _orbit_start_time(df)
     df['dglats'] = derivative(df['glats'].values)
@@ -150,7 +164,7 @@ def get_orbit_numbered_ssj_range_dataframe(dmsp_number,dt_start,dt_end,config):
     dfs = []
     while dt<dt_end:
         try:
-            dfs.append(_read_ssj_cdf(ssjcdffn(dmsp_number,dt,config),config))
+            dfs.append(_read_ssj_file(ssjfn(dmsp_number,dt,config),config))
         except IOError:
             print(f'File not found for date {dt}')
         dt+=datetime.timedelta(days=1)

@@ -67,7 +67,7 @@ def bin_by_latitude(orbit_numbered_ssj_dataframe,config,latvar='glats'):
     #Store the time as datetime64 for the averaging operation   
     df['time']=df.index.values.astype(np.int64)
     
-    binneddf = df.groupby(['orbit_start_time','latbin']).mean()
+    binneddf = df.groupby(['orbit_start_time','latbin']).mean() 
     binneddf['time'] = pd.to_datetime(binneddf['time'])
     return binneddf
 
