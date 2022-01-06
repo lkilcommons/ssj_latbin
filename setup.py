@@ -10,7 +10,7 @@ from setuptools import setup, Extension
 from setuptools.command import install as _install
 
 setup(name='ssjlatbin',
-      version = "0.1.0",
+      version = "0.1.1",
       description = "Bin SSJ data by latitude for ML purposes",
       author = "Liam Kilcommons",
       author_email = 'liam.kilcommons@colorado.edu',
