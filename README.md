@@ -1,5 +1,7 @@
 # ssj_latbin
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5768488.svg)](https://doi.org/10.5281/zenodo.5768488)
+
 A library which creates a machine-learning-ready Defense Meterology Satellite Program auroral particle precipitation (SSJ) dataset.
 
 A Jupyter notebook which documents this code and demonstrates its usage is available in [the notebooks folder](notebooks/Demo.ipynb)
